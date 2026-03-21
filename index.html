@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>مرسل واتساب - بدون طلب تأكيد</title>
+    <title>مرسل واتساب - مع مجموعات</title>
     <style>
         * {
             box-sizing: border-box;
@@ -19,7 +19,7 @@
             align-items: center;
         }
         .card {
-            max-width: 550px;
+            max-width: 600px;
             width: 100%;
             background: white;
             border-radius: 28px;
@@ -44,7 +44,7 @@
             margin: 12px 0 5px;
             font-size: 0.85rem;
         }
-        input, textarea {
+        input, textarea, select {
             width: 100%;
             padding: 12px 14px;
             border: 1px solid #ccc;
@@ -76,6 +76,9 @@
         }
         button.info {
             background: #17a2b8;
+        }
+        button.warning {
+            background: #ff9800;
         }
         .counter {
             background: #e9ecef;
@@ -209,9 +212,23 @@
             margin: 10px 0;
             font-size: 12px;
         }
-        .fix-all-btn {
-            background: #ff9800;
-            margin-bottom: 10px;
+        .group-selector {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 12px;
+            margin: 10px 0;
+        }
+        .group-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .group-buttons button {
+            flex: 1;
+            margin: 0;
+            padding: 8px;
+            font-size: 0.8rem;
         }
     </style>
 </head>
@@ -219,14 +236,28 @@
 
 <div class="card">
     <h1>📱 مرسل واتساب</h1>
-    <div class="sub">🚀 يفتح واتساب مباشرة - بدون طلب "Continue"</div>
+    <div class="sub">🚀 مع مجموعات (عائلة - أصدقاء - زملاء)</div>
 
     <div class="success-box">
         ✅ <strong>طريقة الإرسال:</strong><br>
-        • اضغط "اختيار من جهات الاتصال" واختار الأرقام<br>
+        • أنشئ مجموعة جديدة أو اختر مجموعة موجودة<br>
+        • أضف الأرقام من جهات الاتصال أو يدوياً<br>
         • اكتب الرسالة واختار صورة<br>
-        • اضغط "بدء الإرسال"<br>
-        • <strong>هيفتح واتساب مباشرة بدون أي طلب تأكيد</strong>
+        • اضغط "بدء الإرسال"
+    </div>
+
+    <!-- قسم المجموعات -->
+    <div class="group-selector">
+        <label>📁 المجموعات</label>
+        <select id="groupSelect">
+            <option value="">-- اختر مجموعة --</option>
+        </select>
+        <div class="group-buttons">
+            <button id="newGroupBtn" class="info" style="background:#17a2b8;">➕ مجموعة جديدة</button>
+            <button id="saveGroupBtn" class="secondary">💾 حفظ المجموعة الحالية</button>
+            <button id="deleteGroupBtn" class="danger">🗑 حذف المجموعة</button>
+        </div>
+        <input type="text" id="newGroupName" placeholder="اسم المجموعة الجديدة" style="margin-top: 8px;">
     </div>
 
     <label>🌍 كود الدولة (مصر: 20)</label>
@@ -242,8 +273,10 @@
         <button id="removeImageBtn" style="background:#dc3545; margin-top: 5px; padding: 5px;">🗑 إزالة</button>
     </div>
 
-    <button id="pickContactsBtn" class="info" style="background:#17a2b8;">📞 اختيار من جهات الاتصال</button>
-    <button id="fixAllBtn" class="fix-all-btn" style="background:#ff9800;">🔧 إعادة تصحيح جميع الأرقام</button>
+    <div class="flex-row">
+        <button id="pickContactsBtn" class="info" style="background:#17a2b8;">📞 اختيار من جهات الاتصال</button>
+        <button id="fixAllBtn" class="warning">🔧 إعادة تصحيح الأرقام</button>
+    </div>
 
     <label>✅ الأرقام المختارة:</label>
     <div id="selectedContactsList" class="selected-list">
@@ -271,27 +304,125 @@
     <div id="status" class="status"></div>
 
     <footer>
-        💡 <strong>ملاحظة:</strong> يستخدم Android Intent عشان يفتح واتساب بدون طلب تأكيد.
+        💡 <strong>ملاحظة:</strong> المجموعات تُحفظ تلقائياً في المتصفح. افتح التطبيق مرة أخرى وستجدها.
     </footer>
 </div>
 
 <script>
+    // ========== نظام المجموعات ==========
+    let groups = {};  // { "العائلة": [{name, originalPhone, fixedPhone}], ... }
+    let currentGroup = "";
     let selectedContacts = [];
     let isSending = false;
     let currentIndex = 0;
     let currentImage = null;
 
-    const countryInput = document.getElementById('countryCode');
-    const messageInput = document.getElementById('message');
-    const imageFile = document.getElementById('imageFile');
-    const imagePreview = document.getElementById('imagePreview');
-    const previewImg = document.getElementById('previewImg');
-    const removeImageBtn = document.getElementById('removeImageBtn');
-    const counterSpan = document.getElementById('counter');
-    const progressDiv = document.getElementById('progress');
-    const statusDiv = document.getElementById('status');
-    const selectedContactsList = document.getElementById('selectedContactsList');
-    const delayInput = document.getElementById('delayTime');
+    // تحميل المجموعات من localStorage
+    function loadGroups() {
+        const saved = localStorage.getItem('whatsapp_groups');
+        if (saved) {
+            groups = JSON.parse(saved);
+        } else {
+            // مجموعات افتراضية
+            groups = {
+                "العائلة": [],
+                "الأصدقاء": [],
+                "الزملاء": []
+            };
+        }
+        updateGroupSelect();
+    }
+
+    // حفظ المجموعات في localStorage
+    function saveGroups() {
+        localStorage.setItem('whatsapp_groups', JSON.stringify(groups));
+        updateGroupSelect();
+    }
+
+    // تحديث قائمة المجموعات في الـ select
+    function updateGroupSelect() {
+        const select = document.getElementById('groupSelect');
+        select.innerHTML = '<option value="">-- اختر مجموعة --</option>';
+        for (let groupName in groups) {
+            const option = document.createElement('option');
+            option.value = groupName;
+            option.textContent = `${groupName} (${groups[groupName].length} جهة اتصال)`;
+            select.appendChild(option);
+        }
+    }
+
+    // تحميل مجموعة محددة
+    function loadGroup(groupName) {
+        if (!groups[groupName]) {
+            selectedContacts = [];
+        } else {
+            selectedContacts = JSON.parse(JSON.stringify(groups[groupName])); // نسخة عميقة
+        }
+        currentGroup = groupName;
+        renderSelectedContacts();
+        addStatus(`📁 تم تحميل مجموعة "${groupName}" - ${selectedContacts.length} جهة اتصال`);
+    }
+
+    // حفظ المجموعة الحالية
+    function saveCurrentGroup() {
+        if (!currentGroup) {
+            alert('الرجاء اختيار مجموعة أولاً');
+            return;
+        }
+        groups[currentGroup] = JSON.parse(JSON.stringify(selectedContacts));
+        saveGroups();
+        addStatus(`💾 تم حفظ ${selectedContacts.length} جهة اتصال في مجموعة "${currentGroup}"`);
+    }
+
+    // إنشاء مجموعة جديدة
+    function createNewGroup() {
+        const newName = document.getElementById('newGroupName').value.trim();
+        if (!newName) {
+            alert('الرجاء إدخال اسم للمجموعة');
+            return;
+        }
+        if (groups[newName]) {
+            alert('المجموعة موجودة بالفعل');
+            return;
+        }
+        groups[newName] = [];
+        saveGroups();
+        document.getElementById('newGroupName').value = '';
+        document.getElementById('groupSelect').value = newName;
+        currentGroup = newName;
+        selectedContacts = [];
+        renderSelectedContacts();
+        addStatus(`✅ تم إنشاء مجموعة "${newName}"`);
+    }
+
+    // حذف مجموعة
+    function deleteCurrentGroup() {
+        if (!currentGroup) {
+            alert('الرجاء اختيار مجموعة');
+            return;
+        }
+        if (confirm(`هل تريد حذف مجموعة "${currentGroup}"؟`)) {
+            delete groups[currentGroup];
+            saveGroups();
+            currentGroup = "";
+            selectedContacts = [];
+            renderSelectedContacts();
+            addStatus(`🗑 تم حذف مجموعة "${currentGroup}"`);
+        }
+    }
+
+    // عند تغيير المجموعة من الـ select
+    function onGroupChange() {
+        const select = document.getElementById('groupSelect');
+        const groupName = select.value;
+        if (groupName) {
+            loadGroup(groupName);
+        } else {
+            currentGroup = "";
+            selectedContacts = [];
+            renderSelectedContacts();
+        }
+    }
 
     // ========== تصحيح الرقم ==========
     function fixPhoneNumber(phone, countryCode) {
@@ -335,7 +466,7 @@
     }
 
     function fixAllNumbers() {
-        let countryCode = countryInput.value.trim() || '20';
+        let countryCode = document.getElementById('countryCode').value.trim() || '20';
         let fixedCount = 0;
         
         for (let i = 0; i < selectedContacts.length; i++) {
@@ -352,8 +483,12 @@
     }
 
     function renderSelectedContacts() {
+        const container = document.getElementById('selectedContactsList');
+        const counterSpan = document.getElementById('counter');
+        const progressDiv = document.getElementById('progress');
+        
         if (selectedContacts.length === 0) {
-            selectedContactsList.innerHTML = '<div style="text-align:center; color:gray;">📭 لم يتم اختيار أي جهة اتصال</div>';
+            container.innerHTML = '<div style="text-align:center; color:gray;">📭 لم يتم اختيار أي جهة اتصال</div>';
             counterSpan.innerText = `📇 عدد المستلمين: 0`;
         } else {
             let html = '';
@@ -372,7 +507,7 @@
                     </div>
                 `;
             });
-            selectedContactsList.innerHTML = html;
+            container.innerHTML = html;
             counterSpan.innerText = `📇 عدد المستلمين: ${selectedContacts.length}`;
         }
         let percent = selectedContacts.length ? (currentIndex / selectedContacts.length) * 100 : 0;
@@ -399,18 +534,18 @@
     }
 
     function addStatus(msg, isError = false) {
+        const statusDiv = document.getElementById('status');
         let time = new Date().toLocaleTimeString('ar-EG');
         statusDiv.innerHTML += `<div style="${isError ? 'color:#c62828' : 'color:#2e7d32'}">${time} - ${msg}</div>`;
         statusDiv.scrollTop = statusDiv.scrollHeight;
         if (statusDiv.children.length > 20) statusDiv.removeChild(statusDiv.children[0]);
     }
 
-    // ========== الفرق الأساسي: استخدام Android Intent بدون طلب تأكيد ==========
+    // فتح واتساب
     function openWhatsAppDirect(phone, message) {
         return new Promise((resolve) => {
-            // استخدام Android Intent - يفتح واتساب مباشرة بدون طلب "Continue"
             let intentUrl = `intent://send?phone=${phone}&text=${encodeURIComponent(message)}#Intent;scheme=whatsapp;package=com.whatsapp;end;`;
-            let delay = parseInt(delayInput.value) || 7;
+            let delay = parseInt(document.getElementById('delayTime').value) || 7;
             
             addStatus(`📱 فتح واتساب لـ ${phone}`);
             window.location.href = intentUrl;
@@ -428,7 +563,7 @@
     }
 
     async function startSending() {
-        let msg = messageInput.value.trim();
+        let msg = document.getElementById('message').value.trim();
         let finalMsg = msg;
         if (currentImage) finalMsg = msg + "\n\n📷 [مرفق صورة - اضغط 📎 لإرفاقها]";
         if (!msg && !currentImage) {
@@ -445,12 +580,12 @@
             return;
         }
 
-        let delay = parseInt(delayInput.value) || 7;
+        let delay = parseInt(document.getElementById('delayTime').value) || 7;
         addStatus(`⚙️ وقت الانتظار: ${delay} ثواني`);
 
         isSending = true;
         currentIndex = 0;
-        statusDiv.innerHTML = '';
+        document.getElementById('status').innerHTML = '';
         addStatus(`🚀 بدء الإرسال لـ ${selectedContacts.length} جهة اتصال`);
 
         for (let i = 0; i < selectedContacts.length && isSending; i++) {
@@ -474,98 +609,4 @@
             addStatus('⏹️ تم الإيقاف', true);
         } else {
             alert('⚠️ لا يوجد إرسال نشط');
-        }
-    }
-
-    async function pickContactsFromPhone() {
-        if (!('contacts' in navigator)) {
-            alert('❌ متصفحك لا يدعم اختيار جهات الاتصال.\n\n🔧 استخدم Google Chrome');
-            
-            let addManually = confirm('هل تريد إضافة الأرقام يدوياً؟');
-            if (addManually) {
-                let manualNumbers = prompt('📝 أدخل الأرقام (كل رقم في سطر)\nمثال:\n01234567890, أحمد');
-                if (manualNumbers) {
-                    let lines = manualNumbers.split('\n');
-                    let countryCode = countryInput.value.trim() || '20';
-                    for (let line of lines) {
-                        line = line.trim();
-                        if (!line) continue;
-                        let parts = line.split(',');
-                        let phone = parts[0].trim();
-                        let name = parts[1] ? parts[1].trim() : '';
-                        if (phone) {
-                            addContact(name, phone, countryCode);
-                        }
-                    }
-                    addStatus(`✅ تم إضافة ${selectedContacts.length} جهة اتصال يدوياً`);
-                }
-            }
-            return;
-        }
-
-        try {
-            addStatus('📞 جاري فتح جهات الاتصال...');
-            
-            const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
-            
-            if (!contacts || contacts.length === 0) {
-                addStatus('⚠️ لم يتم اختيار أي جهة اتصال');
-                return;
-            }
-            
-            let countryCode = countryInput.value.trim() || '20';
-            let addedCount = 0;
-            
-            for (let contact of contacts) {
-                if (contact.tel && contact.tel.length > 0) {
-                    let phone = String(contact.tel[0]);
-                    let name = contact.name ? String(contact.name) : '';
-                    addContact(name, phone, countryCode);
-                    addedCount++;
-                }
-            }
-            
-            addStatus(`✅ تم إضافة ${addedCount} جهة اتصال من هاتفك`);
-            
-        } catch (err) {
-            console.error('Error:', err);
-            addStatus('❌ فشل الوصول لجهات الاتصال: ' + err.message, true);
-        }
-    }
-
-    imageFile.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                currentImage = event.target.result;
-                previewImg.src = currentImage;
-                imagePreview.style.display = 'block';
-                addStatus('✅ تم اختيار صورة');
-            };
-            reader.readAsDataURL(file);
-        } else {
-            alert('❌ اختر صورة صالحة');
-            imageFile.value = '';
-        }
-    });
-
-    removeImageBtn.addEventListener('click', function() {
-        currentImage = null;
-        imageFile.value = '';
-        imagePreview.style.display = 'none';
-        previewImg.src = '';
-        addStatus('🗑 تم إزالة الصورة');
-    });
-
-    document.getElementById('pickContactsBtn').onclick = pickContactsFromPhone;
-    document.getElementById('fixAllBtn').onclick = fixAllNumbers;
-    document.getElementById('sendBtn').onclick = startSending;
-    document.getElementById('clearBtn').onclick = clearAllContacts;
-    document.getElementById('stopBtn').onclick = stopSending;
-
-    addStatus('✅ جاهز - اضغط "اختيار من جهات الاتصال"');
-    addStatus('📱 هيفتح واتساب مباشرة بدون طلب "Continue"');
-</script>
-</body>
-</html>
+        
