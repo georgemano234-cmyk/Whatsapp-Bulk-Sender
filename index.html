@@ -21,6 +21,7 @@
         .danger { background: #dc3545; }
         .info { background: #17a2b8; }
         .secondary { background: #128c7e; }
+        .contact-btn { background: #2196f3; } /* لون زرار جهات الاتصال */
         .status { background: #e8f5e9; padding: 10px; border-radius: 16px; font-size: 0.8rem; margin-top: 10px; text-align: center; color: #075e54; }
         .selected-list { background: #e3f2fd; border-radius: 16px; padding: 10px; margin: 10px 0; max-height: 150px; overflow-y: auto; border: 1px dashed #2196f3; }
         .contact-item { background: white; padding: 8px 12px; border-radius: 12px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
@@ -45,9 +46,13 @@
 
     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
-    <label>👤 إضافة رقم للمجموعة الحالية:</label>
+    <label>👤 إضافة أرقام للمجموعة:</label>
     <input type="text" id="phoneInput" placeholder="2010xxxxxxxx">
-    <button class="secondary" onclick="addNumberToGroup()">➕ إضافة الرقم للقائمة</button>
+    
+    <div style="display: flex; gap: 5px;">
+        <button class="secondary" onclick="addNumberToGroup()" style="flex: 2;">➕ إضافة الرقم</button>
+        <button class="contact-btn" onclick="pickContact()" style="flex: 1;">📞 الأسماء</button>
+    </div>
 
     <div id="selectedContactsList" class="selected-list">
         <div style="text-align:center; color:gray;">القائمة فارغة</div>
@@ -75,6 +80,39 @@
             opt.value = name;
             opt.textContent = `${name} (${groups[name].length} رقم)`;
             select.appendChild(opt);
+        }
+    }
+
+    // خاصية اختيار الأسماء من الموبايل
+    async function pickContact() {
+        if (!currentGroupName) return alert("اختار مجموعة الأول يا مينا");
+        
+        const props = ['name', 'tel'];
+        const opts = { multiple: true };
+
+        try {
+            if ('contacts' in navigator && 'ContactsManager' in window) {
+                const contacts = await navigator.contacts.select(props, opts);
+                if (contacts.length) {
+                    contacts.forEach(contact => {
+                        if (contact.tel && contact.tel.length > 0) {
+                            // تنظيف الرقم من المسافات أو العلامات
+                            let rawNum = contact.tel[0].replace(/\s+/g, '').replace(/[+\-()]/g, '');
+                            // لو الرقم بدأ بـ 0، بنشيله ونحط 20 (مثال لمصر، عدلها لو محتاج)
+                            if (rawNum.startsWith('0')) rawNum = '20' + rawNum.substring(1);
+                            
+                            groups[currentGroupName].push(rawNum);
+                        }
+                    });
+                    save();
+                    renderNumbers();
+                    init(); // لتحديث عدد الأرقام في القائمة
+                }
+            } else {
+                alert("عفواً، متصفحك لا يدعم الوصول لأسماء الموبايل مباشرة. يرجى كتابة الرقم يدوياً.");
+            }
+        } catch (err) {
+            console.error("Error picking contact: ", err);
         }
     }
 
@@ -110,6 +148,7 @@
             document.getElementById('phoneInput').value = "";
             save();
             renderNumbers();
+            init();
         } else if (!currentGroupName) {
             alert("اختار مجموعة الأول يا مينا");
         }
@@ -119,6 +158,7 @@
         groups[currentGroupName].splice(index, 1);
         save();
         renderNumbers();
+        init();
     }
 
     function renderNumbers() {
@@ -130,7 +170,7 @@
         list.innerHTML = groups[currentGroupName].map((num, i) => `
             <div class="contact-item">
                 <span>${num}</span>
-                <button onclick="removeNumber(${i})" style="width:30px; height:30px; padding:0; background:#dc3545; border-radius:50%;">✕</button>
+                <button onclick="removeNumber(${i})" style="width:30px; height:30px; padding:0; background:#dc3545; border-radius:50%; border:none; color:white;">✕</button>
             </div>
         `).join('');
     }
@@ -143,29 +183,4 @@
         if (!currentGroupName || groups[currentGroupName].length === 0) return alert("مفيش أرقام للإرسال!");
         isSending = true;
         let msg = encodeURIComponent(document.getElementById('message').value);
-        let status = document.getElementById('status');
-
-        for (let i = 0; i < groups[currentGroupName].length; i++) {
-            if (!isSending) break;
-            let phone = groups[currentGroupName][i];
-            status.innerText = `⏳ جاري الإرسال إلى ${phone}... (${i+1}/${groups[currentGroupName].length})`;
-            
-            window.location.href = `intent://send?phone=${phone}&text=${msg}#Intent;scheme=whatsapp;package=com.whatsapp;end;`;
-            
-            // انتظار 7 ثواني قبل الرقم التالي لضمان عدم الحظر وسلاسة التنقل
-            await new Promise(r => setTimeout(r, 7000));
-        }
-        isSending = false;
-        status.innerText = "✅ تمت المهمة بنجاح!";
-    }
-
-    function stopSending() {
-        isSending = false;
-        document.getElementById('status').innerText = "⏹️ تم الإيقاف";
-    }
-
-    window.onload = init;
-</script>
-
-</body>
-</html>
+        let status = document.getElementById
