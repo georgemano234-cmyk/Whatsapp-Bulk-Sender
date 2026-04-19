@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>مرسل واتساب - مجموعات</title>
+    <title>مرسل واتساب - برو</title>
 
     <link rel="manifest" href="https://progressier.app/tQN6bS9WbWN6T7HZzI2n/progressier.json"/>
     <script defer src="https://progressier.app/tQN6bS9WbWN6T7HZzI2n/script.js"></script>
@@ -17,41 +17,41 @@
         label { font-weight: bold; display: block; margin: 12px 0 5px; font-size: 0.85rem; }
         input, textarea, select { width: 100%; padding: 12px 14px; border: 1px solid #ccc; border-radius: 20px; font-size: 1rem; background: #fff; margin-bottom: 10px; }
         button { background: #25d366; color: white; border: none; padding: 12px; border-radius: 30px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 8px; transition: 0.3s; }
-        button:active { transform: scale(0.98); }
+        button:active { transform: scale(0.95); }
         .danger { background: #dc3545; }
         .info { background: #17a2b8; }
         .secondary { background: #128c7e; }
-        .contact-btn { background: #2196f3; } /* لون زرار جهات الاتصال */
-        .status { background: #e8f5e9; padding: 10px; border-radius: 16px; font-size: 0.8rem; margin-top: 10px; text-align: center; color: #075e54; }
-        .selected-list { background: #e3f2fd; border-radius: 16px; padding: 10px; margin: 10px 0; max-height: 150px; overflow-y: auto; border: 1px dashed #2196f3; }
-        .contact-item { background: white; padding: 8px 12px; border-radius: 12px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+        .contact-btn { background: #2196f3; }
+        .status { background: #e8f5e9; padding: 10px; border-radius: 16px; font-size: 0.8rem; margin-top: 10px; text-align: center; color: #075e54; font-weight: bold; }
+        .selected-list { background: #e3f2fd; border-radius: 16px; padding: 10px; margin: 10px 0; max-height: 200px; overflow-y: auto; border: 1px dashed #2196f3; }
+        .contact-item { background: white; padding: 8px 12px; border-radius: 12px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        hr { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <h1>📱 مرسل واتساب</h1>
-    <div class="sub">🚀 المجموعات والرسائل السريعة</div>
+    <div class="sub">🚀 إدارة المجموعات والأسماء</div>
 
-    <label>📁 إدارة المجموعات:</label>
+    <label>📁 المجموعات:</label>
     <select id="groupSelect" onchange="loadGroupData()">
         <option value="">-- اختر مجموعة --</option>
     </select>
     
-    <input type="text" id="newGroupName" placeholder="اسم مجموعة جديدة...">
+    <input type="text" id="newGroupName" placeholder="اسم مجموعة جديدة (مثلاً: العائلة)">
     <div style="display: flex; gap: 5px;">
-        <button class="info" onclick="addGroup()">➕ إضافة</button>
-        <button class="danger" onclick="deleteGroup()">🗑 حذف</button>
+        <button class="info" onclick="addGroup()" style="font-size: 13px;">➕ إضافة مجموعة</button>
+        <button class="danger" onclick="deleteGroup()" style="font-size: 13px;">🗑 حذف المجموعة</button>
     </div>
 
-    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+    <hr>
 
-    <label>👤 إضافة أرقام للمجموعة:</label>
+    <label>👤 إضافة أرقام للمجموعة الحالية:</label>
     <input type="text" id="phoneInput" placeholder="2010xxxxxxxx">
-    
     <div style="display: flex; gap: 5px;">
-        <button class="secondary" onclick="addNumberToGroup()" style="flex: 2;">➕ إضافة الرقم</button>
-        <button class="contact-btn" onclick="pickContact()" style="flex: 1;">📞 الأسماء</button>
+        <button class="secondary" onclick="addNumberToGroup()" style="flex: 2;">➕ إضافة يدوياً</button>
+        <button class="contact-btn" onclick="pickContact()" style="flex: 1.2;">📞 الأسماء</button>
     </div>
 
     <div id="selectedContactsList" class="selected-list">
@@ -62,9 +62,9 @@
     <textarea id="message" rows="3" placeholder="اكتب رسالتك هنا..."></textarea>
 
     <button onclick="startSending()">🚀 بدء الإرسال الدوري</button>
-    <button class="danger" onclick="stopSending()">⏹️ إيقاف مؤقت</button>
+    <button class="danger" onclick="stopSending()">⏹️ إيقاف</button>
     
-    <div id="status" class="status">جاهز للإرسال...</div>
+    <div id="status" class="status">جاهز للعمل</div>
 </div>
 
 <script>
@@ -72,6 +72,7 @@
     let currentGroupName = "";
     let isSending = false;
 
+    // تهيئة القائمة المنسدلة
     function init() {
         const select = document.getElementById('groupSelect');
         select.innerHTML = '<option value="">-- اختر مجموعة --</option>';
@@ -83,39 +84,7 @@
         }
     }
 
-    // خاصية اختيار الأسماء من الموبايل
-    async function pickContact() {
-        if (!currentGroupName) return alert("اختار مجموعة الأول يا مينا");
-        
-        const props = ['name', 'tel'];
-        const opts = { multiple: true };
-
-        try {
-            if ('contacts' in navigator && 'ContactsManager' in window) {
-                const contacts = await navigator.contacts.select(props, opts);
-                if (contacts.length) {
-                    contacts.forEach(contact => {
-                        if (contact.tel && contact.tel.length > 0) {
-                            // تنظيف الرقم من المسافات أو العلامات
-                            let rawNum = contact.tel[0].replace(/\s+/g, '').replace(/[+\-()]/g, '');
-                            // لو الرقم بدأ بـ 0، بنشيله ونحط 20 (مثال لمصر، عدلها لو محتاج)
-                            if (rawNum.startsWith('0')) rawNum = '20' + rawNum.substring(1);
-                            
-                            groups[currentGroupName].push(rawNum);
-                        }
-                    });
-                    save();
-                    renderNumbers();
-                    init(); // لتحديث عدد الأرقام في القائمة
-                }
-            } else {
-                alert("عفواً، متصفحك لا يدعم الوصول لأسماء الموبايل مباشرة. يرجى كتابة الرقم يدوياً.");
-            }
-        } catch (err) {
-            console.error("Error picking contact: ", err);
-        }
-    }
-
+    // إضافة مجموعة جديدة
     function addGroup() {
         let name = document.getElementById('newGroupName').value.trim();
         if (name && !groups[name]) {
@@ -123,11 +92,13 @@
             save();
             document.getElementById('newGroupName').value = "";
             init();
+            alert("تمت إضافة المجموعة ✅");
         }
     }
 
+    // حذف مجموعة
     function deleteGroup() {
-        if (currentGroupName) {
+        if (currentGroupName && confirm(`هل تريد حذف مجموعة "${currentGroupName}"؟`)) {
             delete groups[currentGroupName];
             currentGroupName = "";
             save();
@@ -136,21 +107,59 @@
         }
     }
 
+    // تحميل أرقام المجموعة المختارة
     function loadGroupData() {
         currentGroupName = document.getElementById('groupSelect').value;
         renderNumbers();
     }
 
+    // إضافة رقم يدوياً
     function addNumberToGroup() {
         let num = document.getElementById('phoneInput').value.trim();
         if (currentGroupName && num) {
-            groups[currentGroupName].push(num);
-            document.getElementById('phoneInput').value = "";
-            save();
-            renderNumbers();
-            init();
+            let cleanNum = num.replace(/\D/g, '');
+            if (!groups[currentGroupName].includes(cleanNum)) {
+                groups[currentGroupName].push(cleanNum);
+                document.getElementById('phoneInput').value = "";
+                save();
+                renderNumbers();
+                init();
+            }
         } else if (!currentGroupName) {
             alert("اختار مجموعة الأول يا مينا");
+        }
+    }
+
+    // اختيار الأسماء من الموبايل (المتصفح)
+    async function pickContact() {
+        if (!currentGroupName) return alert("اختار مجموعة الأول عشان نحط فيها الأسماء");
+        
+        if (!('contacts' in navigator && 'ContactsManager' in window)) {
+            return alert("متصفحك لا يدعم هذه الخاصية. جرب تفتح الموقع من Chrome على الموبايل.");
+        }
+
+        const props = ['name', 'tel'];
+        const opts = { multiple: true };
+
+        try {
+            const contacts = await navigator.contacts.select(props, opts);
+            if (contacts && contacts.length > 0) {
+                contacts.forEach(contact => {
+                    if (contact.tel && contact.tel.length > 0) {
+                        let rawNum = contact.tel[0].replace(/\D/g, '');
+                        if (rawNum.startsWith('01')) rawNum = '20' + rawNum.substring(1);
+                        if (!groups[currentGroupName].includes(rawNum)) {
+                            groups[currentGroupName].push(rawNum);
+                        }
+                    }
+                });
+                save();
+                renderNumbers();
+                init();
+                alert(`تمت إضافة الأسماء بنجاح ✅`);
+            }
+        } catch (err) {
+            alert("حدث خطأ أو تم رفض الإذن.");
         }
     }
 
@@ -179,8 +188,36 @@
         localStorage.setItem('wa_pro_groups', JSON.stringify(groups));
     }
 
+    // بدء الإرسال الدوري
     async function startSending() {
-        if (!currentGroupName || groups[currentGroupName].length === 0) return alert("مفيش أرقام للإرسال!");
+        if (!currentGroupName || groups[currentGroupName].length === 0) return alert("المجموعة فاضية!");
+        let msgText = document.getElementById('message').value;
+        if (!msgText) return alert("اكتب رسالة الأول");
+
         isSending = true;
-        let msg = encodeURIComponent(document.getElementById('message').value);
-        let status = document.getElementById
+        let msg = encodeURIComponent(msgText);
+        let status = document.getElementById('status');
+
+        for (let i = 0; i < groups[currentGroupName].length; i++) {
+            if (!isSending) break;
+            let phone = groups[currentGroupName][i];
+            status.innerText = `⏳ إرسال إلى ${phone}... (${i+1}/${groups[currentGroupName].length})`;
+            
+            window.location.href = `intent://send?phone=${phone}&text=${msg}#Intent;scheme=whatsapp;package=com.whatsapp;end;`;
+            
+            await new Promise(r => setTimeout(r, 7000));
+        }
+        isSending = false;
+        status.innerText = "✅ انتهى الإرسال";
+    }
+
+    function stopSending() {
+        isSending = false;
+        document.getElementById('status').innerText = "⏹️ توقف";
+    }
+
+    window.onload = init;
+</script>
+
+</body>
+</html>
